@@ -1,0 +1,184 @@
+---
+title: "MTH6139 Time Series"
+subtitle: "US Accidental Deaths"
+author: "Mariam Khan" 
+date: "March 2024"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+---
+
+# US Accidental Deaths
+
+```{r, echo=FALSE}
+htmltools::img(src = knitr::image_uri("QMlogo.png"), 
+               alt = 'logo', 
+               style = 'position:absolute; top:0; right:0; padding:10px; width:30%;')
+
+```
+
+This project aims to use Meta's Prophet forecasting system to analyse the time series data of 'US Accidental Deaths'. The main objective is to identify patterns, trends, and underlying factors, such as environmental, societal, and technological, that influence accidental deaths in the United States over time. 
+
+
+Moreover, the project will use forecasting to predict future trends in accidental deaths. By examining historical data patterns and projecting potential changes, this analysis can help identify areas where accident rates may increase or decrease. Through the study and prediction of future data, valuable insights to inform strategies for accident prevention may be gained. 
+
+```{r, echo=FALSE, fig.width = 3, fig.height = 4, out.width = '70%', fig.align='center'}
+
+knitr::include_graphics("picture.jpeg", error = FALSE )
+```
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+ htmltools::img(src = knitr::image_uri("picture.jpeg"), 
+               alt = 'logo', 
+               style = 'position:absolute; top:7; right:3; padding:10px; width:30%;')
+
+```
+
+## 1. Load the Library
+
+```{r}
+
+library(prophet)
+
+```
+
+***
+
+## 2. Time Series as an R dataframe
+
+I am using the time series "USAccDeaths", which contains monthly US Accidental Deaths from 1973 to 1978.
+
+```{r}
+
+data("USAccDeaths")
+USAccDeaths
+deaths.df = data.frame(ds = zoo::as.yearmon(time(USAccDeaths)), y = USAccDeaths)
+
+```
+
+The time series has been converted into a dataframe with 2 columns:
+
+  * ds -> time in months
+
+  * y -> number of deaths
+  
+The following code checks the first few rows and the structure of the plot:
+
+```{r}
+
+head(deaths.df)
+str(deaths.df)
+
+```
+
+***
+
+## 3. Linear Regression Analysis
+
+It may be beneficial to check if there are any potential linear trends in the dataset. The following code fits a linear trend function to the time series using the lm function.
+
+```{r}
+
+plot(deaths.df$ds, deaths.df$y, type = 'l')
+linear_model <- lm(y ~ ds, deaths.df)
+lines(deaths.df$ds, fitted(linear_model), type = 'l', col = 'purple')
+summary(linear_model)
+
+```
+
+The plot above displays the time series of accidental deaths, where the x-axis represents time in months and the y-axis represents the number of deaths. The purple line shows the linear regression fitted to the data. Looking at the plot and the summary statistics of the linear regression model, it's evident that a linear trend does not capture the underlying pattern in the time series data. 
+
+***
+
+## 4. Fit the Prophet Model
+
+The prophet model can now be fitted to the dataframe. 
+
+```{r}
+
+model = prophet(deaths.df)
+
+```
+
+***
+
+## 5. Create Future Dates 
+
+To create future dates for forecasting:
+
+```{r}
+
+future = make_future_dataframe(model, periods = 24, freq = "month")
+
+```
+
+As the frequency of forecasting is set to monthly and there are 24 periods, this creates dates for up to 2 years into the future. (1980)
+
+***
+
+## 6. The Forecast
+
+Now, the prophet model and the future dates are used to generate forecasts.
+
+First, the predict function needs to be run.
+
+```{r}
+
+pred = predict(model, future)
+
+```
+
+The forecast can now be displayed along with uncertainty intervals, represented by the shaded areas. The wider the uncertainty interval, the greater the uncertainty in the forecasted values. 
+
+```{r}
+
+dyplot.prophet(model, pred)
+
+```
+
+It is also useful to see the forecast broken down into trend and yearly seasonality. 
+
+```{r}
+
+prophet_plot_components(model, pred)
+
+```
+
+The trend component highlights any continuous upward or downward movement over time. Here, it seems to be that accidental deaths were decreasing from 1973 to around mid 1976, and then they started to increase continiously. 
+
+The seasonality component reflects the recurring patterns or cycles observed within the data yearly. These patterns are essential to accurately model forecasts, especially in time series with strong seasonal patterns, much like the one this project explores.
+
+***
+
+We can also consider a larger future forecast, for example 10 or 20 years.
+
+```{r}
+
+future2 = make_future_dataframe(model, periods = 120, freq = "month")
+pred2 = predict(model, future2)
+dyplot.prophet(model, pred2)
+
+future3 = make_future_dataframe(model, periods = 240, freq = "month")
+pred3 = predict(model, future3)
+dyplot.prophet(model, pred3)
+```
+
+***
+
+## 7. Analysis
+
+The data shows a clear seasonal pattern, with peaks occurring regularly, particularly around the summer months. This suggests that accidental deaths tend to rise and fall at specific times of the year. There could be numerous explanations for this. 
+
+Firstly, warmer months typically see heightened travel and outdoor activities, resulting in increased exposure to potential accidents. For example, in the summer, drowning incidents rise due to more participation in water-related activities. Moreover, temperature extremes can also increase the risk of deaths from heat stroke. 
+
+On the other hand, the troughs in accidental deaths are observed around February each year. This may be due to harsh weather conditions causing decreased outdoor activities and travel, thus reducing the likelihood of accidents. Additionally, during winter months, there is a heightened awareness of safety measures and a larger effort to enforce traffic laws. It may also be due to the simple reason of February being a shorter month.
+
+Notably, the magnitude of peaks and troughs varies from year to year. This implies that there are additional factors, such as economic or societal changes, that have an affect beyond simple seasonality. During economic downturns, for example, rising unemployment rates may result in fewer vehicles on the roads, impacting accident rates. Conversely, periods of economic growth may lead to increased travel and activity, resulting in higher accident rates.
+
+Looking at the graphs with the extended time frames of 10 and 20 years, the peaks in accidental deaths increase over time. This implies a concerning trend, suggesting that despite technological and societal advancements, the number of accidental deaths may rise in the future. However, the light blue shading around the graph, which represents the uncertainty in the data, also expands over time, highlighting the unpredictability of future outcomes. 
+
+***
+
